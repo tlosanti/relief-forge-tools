@@ -1,0 +1,20 @@
+# Environments and vendored source — rebuilt by setup_gen3d.sh, never committed
+.venv-gen3d/
+.venv/
+.gen3d-src/
+
+# Caches
+gen3d_cache/
+depth_cache/
+__pycache__/
+*.pyc
+
+# Output
+*.stl
+*.glb
+*.obj
+
+# Scratch
+_probe
+test_write_probe/
+.DS_Store
