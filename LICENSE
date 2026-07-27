@@ -22,20 +22,17 @@ SOFTWARE.
 
 ---
 
-NOTE ON THE MODEL
+THIRD-PARTY MODELS
 
-This licence covers the code in this repository only.
+This licence covers the code in this repository only. No model weights are
+distributed here.
 
-The scripts here download and run Tencent's Hunyuan3D model, which is
-distributed under its own separate terms — the Tencent Hunyuan Non-Commercial
-License Agreement. No model weights are redistributed by this repository.
-
-Anyone using this for commercial work, including selling printed or cast
-pieces, should read those terms directly:
+The optional generation backend downloads Tencent Hunyuan3D checkpoints, which
+are governed by the Tencent Hunyuan licence:
 
   https://github.com/Tencent-Hunyuan/Hunyuan3D-2/blob/main/LICENSE
 
-Two points that have caused confusion and are worth checking yourself: the
-agreement's defined "Territory" excludes the European Union, the United
-Kingdom and South Korea, and published summaries disagree about what
-commercial use it permits. This note is not legal advice.
+That agreement's defined Territory excludes the European Union, the United
+Kingdom and South Korea, and it restricts commercial use. Published summaries
+of its commercial terms disagree; review the agreement directly before
+commercial application. This note is not legal advice.

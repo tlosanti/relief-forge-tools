@@ -1,140 +1,152 @@
-# relief-forge-tools
+# Relief Forge Tools — Mesh Reconstruction and Fabrication Validation
 
-Turn a photograph of an object into a watertight STL you can print or cast.
+Relief Forge Tools converts single-view or multi-view object photographs into
+dimensionally scaled STL meshes and verifies that the resulting geometry is
+suitable for fabrication. It targets small-scale investment casting and
+additive manufacturing, where a model must be a closed solid with real
+millimetre dimensions.
 
-Built for jewellery: small pieces, cast in silver or bronze, where the model
-has to be a closed solid and the wall thicknesses have to be real millimetres.
+The reconstruction model is one interchangeable mesh source. The content of
+this repository is the geometry processing and verification pipeline around it,
+which operates identically on meshes from a generative model, a 3D scanner or a
+CAD export.
 
-```bash
-./setup_gen3d.sh
-.venv-gen3d/bin/python gen3d.py pendant.jpg --size 30
-python3 mesh_check.py "path/it/prints.stl"
+## Pipeline
+
+```
+Photographs -> mesh generation -> physical scaling -> topology validation
+            -> optional symmetry reconstruction -> STL candidate
 ```
 
-## What each script does
+Only generation requires PyTorch, model weights or a GPU. Every other stage
+depends on NumPy alone. See `figures/generated/pipeline.pdf`.
 
-| Script | Purpose | Needs |
-|---|---|---|
-| `gen3d.py` | photo → closed 3D mesh → millimetre-scaled STL | GPU, ~8 GB model download |
-| `mesh_check.py` | is this STL actually printable? | numpy only |
-| `symmetrize.py` | keep half a mesh, mirror it onto itself | numpy only |
-| `setup_gen3d.sh` | one-time install | git, internet |
+## Core tools
 
-`mesh_check.py` and `symmetrize.py` are standalone. They work on any STL from
-any source — Blender, a scanner, another generator — and have no dependency on
-the generation half of this repo.
+**Mesh generation** (`cli/generate.py`) — single-view and multi-view input,
+background removal, Hunyuan3D inference behind a pluggable backend, millimetre
+scaling, face-count control, content-hash caching.
 
-## Install
+**Mesh validation** (`cli/mesh_check.py`) — binary and ASCII STL parsing,
+vertex welding, boundary-edge detection, non-manifold-edge detection,
+inconsistent-winding detection, connected-component analysis, signed-volume and
+surface-area calculation, material mass estimation, geometry comparison.
+
+**Symmetry reconstruction** (`cli/symmetrize.py`) — planar clipping, half-mesh
+selection, reflection with winding reversal, removal of coplanar interior faces
+and degenerate triangles, manifold revalidation. Appropriate only when
+bilateral symmetry is a known property of the object; otherwise it discards
+real asymmetric geometry.
+
+## Example commands
 
 ```bash
-git clone <this repo>
+python cli/mesh_check.py part.stl                     # validate and measure
+python cli/mesh_check.py a.stl --compare b.stl        # compare two meshes
+python cli/mesh_check.py part.stl --json              # machine-readable
+python cli/symmetrize.py part.stl --axis x -o out.stl
+python cli/generate.py photo.jpg --size 30 --resolution 384
+python cli/generate.py front.jpg --views back.jpg left.jpg right.jpg
+```
+
+Exit codes: `0` pass, `1` checks failed, `2` usage or input error.
+
+## Validation
+
+A mesh **passes the repository's topological and orientation checks** when it
+has no boundary edges, no non-manifold edges, no degenerate edges, consistent
+local winding, positive signed volume, and the expected connected-component
+count.
+
+Passing establishes that the mesh is a closed, coherently oriented solid. It
+does **not** validate minimum wall thickness, unsupported overhangs, printer
+tolerances, casting shrinkage, trapped volumes, or any process-specific
+constraint.
+
+Tests use synthetic geometry with closed-form expected values: closed cube,
+ASCII cube, inverted cube, missing face, reversed triangle, disconnected
+solids, non-manifold flap, annulus, centred and offset symmetry cuts,
+plane-intersection edge cases, zero-area triangle removal. Tolerances are
+explicit per case — `1e-9` where exact in floating point, `3e-3` where a
+polygonal approximation has a known discretisation error.
+
+```bash
+pytest                            # 71 tests, no GPU or network
+python scripts/benchmark.py       # measured timings
+python figures/make_figures.py    # regenerate figures
+```
+
+Details in `docs/methodology.tex` and `docs/validation.tex`.
+
+## Hardware acceleration
+
+**CPU-only.** Topology validation, STL analysis, symmetry reconstruction,
+measurement and reporting need no GPU.
+
+**NVIDIA CUDA (optional).** Device selection resolves at run time and falls
+back automatically; CUDA is never assumed.
+
+```python
+device = "cuda" if torch.cuda.is_available() else "cpu"
+```
+
+Install a CUDA build of PyTorch matching your driver (CUDA 11.8 or 12.1 are the
+usual wheel targets) and verify with `cli/generate.py --selftest`. Select a
+device with `--device cuda|mps|cpu`; an unavailable explicit request raises
+rather than silently downgrading.
+
+**Higher-capacity models.** Discrete NVIDIA GPUs (RTX 3080/3090/4080/4090,
+A5000, A6000) can run higher-fidelity checkpoints. These are not included here;
+`MeshGenerator` is the extension point.
+
+| Tier | Backend | Checkpoint | Reported VRAM |
+|---|---|---|---|
+| Default, lightweight | `hunyuan3d` | `default` | ~6 GB |
+| Higher-capacity | `hunyuan3d-large` | `standard` | ~6 GB |
+| Higher-fidelity | `hunyuan3d-large` | `large` | ~10 GB |
+
+```yaml
+model:
+  backend: hunyuan3d-large
+  checkpoint: large
+  device: cuda
+  fp16: true
+```
+
+VRAM figures are from upstream documentation, not measured here.
+
+Geometry pipeline, measured on Linux aarch64, Python 3.10.12, NumPy 2.2.6,
+median of five runs:
+
+| Triangles | Parse | Weld | Topology | Peak memory |
+|---|---|---|---|---|
+| 512 | 0.01 ms | 0.42 ms | 3.03 ms | 0.21 MB |
+| 8,192 | 0.04 ms | 6.62 ms | 50.7 ms | 2.96 MB |
+| 32,768 | 0.18 ms | 27.5 ms | 208 ms | 11.8 MB |
+
+No GPU inference benchmarks are reported; none have been measured.
+
+## Limitations
+
+Self-intersection is not detected. Welding tolerance is heuristic (`1e-6` of
+the bounding-box diagonal). Mean dihedral angle is a limited detail-retention
+proxy for closely related meshes at identical scale, not a perceptual quality
+metric. Material mass assumes a fully dense solid, excluding sprue, flashing
+and shrinkage. Single-view reconstruction infers unobserved surfaces rather
+than measuring them.
+
+## Installation
+
+```bash
+git clone https://github.com/tlosanti/relief-forge-tools.git
 cd relief-forge-tools
-chmod +x setup_gen3d.sh
-./setup_gen3d.sh
-.venv-gen3d/bin/python gen3d.py --selftest
+pip install -e .        # geometry core: NumPy only
+./scripts/setup.sh      # optional, generation dependencies
 ```
 
-Run `--selftest` before anything else. It checks the environment in a second
-or two, rather than letting you discover a problem after an 8 GB download.
+## License
 
-The installer picks its own mode. If the sibling Half-Tone-Depth-Wrap app is
-present it reuses that venv's torch; otherwise it builds a self-contained
-environment and installs torch itself. Either way it never writes to anything
-outside this folder.
-
-Confirmed working on Apple Silicon, Python 3.14, torch 2.13, MPS.
-
-## Generate
-
-```bash
-.venv-gen3d/bin/python gen3d.py pendant.jpg --size 30
-```
-
-`--size` is the longest dimension in millimetres. Output lands in
-`~/Desktop/Filter Exports/<timestamp>/`.
-
-The model download is ~7.7 GB, once per machine, cached in `~/.cache/hy3dgen`.
-Results are then cached per photo by content hash, so re-running the same image
-at the same settings costs nothing.
-
-**Multi-view is the single biggest quality lever**, and needs no training:
-
-```bash
-.venv-gen3d/bin/python gen3d.py front.jpg --views back.jpg left.jpg right.jpg
-```
-
-One photo means the model invents everything it cannot see. Four photos means
-it mostly interpolates. If you can shoot the piece from several angles, do.
-
-Useful flags: `--octree 384` for finer detail (slower), `--steps`, `--no-rembg`
-if the image is already cut out, `--faces` to cap triangle count.
-
-## Check before you print
-
-```bash
-python3 mesh_check.py piece.stl
-```
-
-Asserts the two things that decide whether an STL is printable: every directed
-edge has exactly one opposite twin (watertight), and total signed volume is
-positive (normals face outward). Also reports bounding box, triangle count,
-connected components, and **cast weight in silver, bronze, 18k gold and resin**
-— which is the number that tells you what a piece will cost to pour.
-
-Exit code is 0 only if the mesh passes, so it can gate a pipeline.
-
-Compare two versions of the same object:
-
-```bash
-python3 mesh_check.py a.stl --compare b.stl
-```
-
-The `roughness` figure (mean dihedral angle) acts as a detail-retention proxy.
-If a generated mesh scores much lower than a reference, fine surface ornament
-has been smoothed away. Only compare meshes scaled to the same longest
-dimension.
-
-## Symmetry
-
-```bash
-python3 symmetrize.py piece.stl --at 0 -o final.stl
-```
-
-Cuts at a plane, keeps one side, mirrors it. On a bilaterally symmetric piece
-this is not an approximation — it is a true fact about the object, and it
-strictly removes error: you keep the half that came out clean and discard the
-half that did not.
-
-It is especially worth doing on generated meshes. The model's guesses for the
-left and right sides always differ slightly, so mirroring replaces its worse
-guess with its better one.
-
-Mirroring front-to-back is a different matter and generally a mistake: it
-fabricates a reverse side that is a copy of the front, when most cast pendants
-have a plain or flat back. That information was never in the photograph.
-
-## Licence
-
-Code here is MIT — do what you like with it.
-
-**The model is not.** These scripts download and run Tencent's Hunyuan3D,
-which carries its own [Non-Commercial License
-Agreement](https://github.com/Tencent-Hunyuan/Hunyuan3D-2/blob/main/LICENSE).
-Its defined territory excludes the EU, UK and South Korea, and published
-summaries disagree about what commercial use it allows. If you intend to sell
-what you make, read those terms yourself. See `LICENSE` for detail. Not legal
-advice.
-
-## Known limits
-
-- Monocular input gives a *relief-like* result: the visible face is faithful,
-  the unseen side is inferred. Multi-view fixes most of this.
-- Fine ornament — filigree, beading, engraved lines — tends to soften. Use
-  `--octree 384` and avoid aggressive `--faces` reduction if detail matters
-  more than file size. You can grind material off a wax; you cannot grind it
-  back on.
-- Texture generation is CUDA-only and deliberately not attempted. Geometry is
-  all that matters for casting.
-
-For design notes, verification details and troubleshooting, see
-[README-gen3d.md](README-gen3d.md).
+MIT. Model weights are not distributed here. Hunyuan3D checkpoints downloaded
+by the generation backend carry the Tencent Hunyuan licence, whose defined
+territory excludes the EU, UK and South Korea and which restricts commercial
+use. Review those terms before commercial application. See `LICENSE`.

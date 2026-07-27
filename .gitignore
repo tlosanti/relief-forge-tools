@@ -1,20 +1,35 @@
-# Environments and vendored source — rebuilt by setup_gen3d.sh, never committed
+# Environments and vendored sources, rebuilt by scripts/setup.sh
 .venv-gen3d/
 .venv/
 .gen3d-src/
+.hi3dgen-src/
 
 # Caches
 gen3d_cache/
 depth_cache/
 __pycache__/
 *.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+build/
+dist/
 
-# Output
-*.stl
-*.glb
-*.obj
+# LaTeX intermediates. The compiled PDFs are committed; the aux files are not.
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+
+# Generated outputs kept out of version control
+examples/output/*.stl
+!examples/output/.gitkeep
 
 # Scratch
+.DS_Store
 _probe
 test_write_probe/
-.DS_Store

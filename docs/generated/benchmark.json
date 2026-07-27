@@ -1,0 +1,48 @@
+{
+  "environment": {
+    "python": "3.10.12",
+    "numpy": "2.2.6",
+    "platform": "Linux-6.8.0-124-generic-aarch64-with-glibc2.35",
+    "machine": "aarch64",
+    "processor": "aarch64",
+    "timestamp": "2026-07-26 22:26:23"
+  },
+  "results": [
+    {
+      "triangles": 512,
+      "file_size_mb": 0.024,
+      "parse_ms": 0.01,
+      "weld_ms": 0.4,
+      "topology_ms": 3.07,
+      "total_ms": 3.49,
+      "peak_memory_mb": 0.21
+    },
+    {
+      "triangles": 2048,
+      "file_size_mb": 0.098,
+      "parse_ms": 0.02,
+      "weld_ms": 1.53,
+      "topology_ms": 12.36,
+      "total_ms": 13.91,
+      "peak_memory_mb": 0.74
+    },
+    {
+      "triangles": 8192,
+      "file_size_mb": 0.391,
+      "parse_ms": 0.04,
+      "weld_ms": 6.62,
+      "topology_ms": 50.66,
+      "total_ms": 57.33,
+      "peak_memory_mb": 2.96
+    },
+    {
+      "triangles": 32768,
+      "file_size_mb": 1.563,
+      "parse_ms": 0.18,
+      "weld_ms": 27.51,
+      "topology_ms": 207.86,
+      "total_ms": 235.56,
+      "peak_memory_mb": 11.82
+    }
+  ]
+}

@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "relief-forge-tools"
+version = "0.2.0"
+description = "Mesh reconstruction and fabrication validation for small-scale casting and additive manufacturing"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+keywords = [
+    "computational-geometry",
+    "mesh-processing",
+    "stl",
+    "additive-manufacturing",
+    "topology",
+    "investment-casting",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Manufacturing",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Graphics :: 3D Modeling",
+    "Topic :: Scientific/Engineering",
+]
+
+# The geometry core depends on NumPy alone. Everything needed for validation,
+# measurement and symmetry reconstruction is covered by this one requirement.
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+# Image-to-mesh inference. Not required for any geometry operation.
+generation = ["torch>=2.0", "trimesh>=4.0", "pillow>=10.0", "einops", "omegaconf"]
+figures = ["matplotlib>=3.7"]
+dev = ["pytest>=7.4", "ruff>=0.5", "mypy>=1.8"]
+
+[project.scripts]
+mesh-check = "relief_forge.__main__:mesh_check"
+symmetrize = "relief_forge.__main__:symmetrize"
+relief-generate = "relief_forge.__main__:generate"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 92
+target-version = "py310"
+src = ["src", "cli", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",   # line length is handled by the formatter
+    "B008",   # argparse defaults are evaluated once by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["N802"]  # test method names follow their own convention
+# __all__ is grouped by subject with comments, which is more useful to a reader
+# than alphabetical order.
+"src/relief_forge/__init__.py" = ["RUF022"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+files = ["src/relief_forge"]
+
+[[tool.mypy.overrides]]
+module = ["hy3dgen.*", "trimesh.*", "PIL.*", "torch.*"]
+ignore_missing_imports = true

@@ -1,0 +1,38 @@
+% Shared preamble for the methodology and validation reports.
+%
+% siunitx is loaded conditionally. It is standard in TeX Live and MacTeX, but
+% absent from minimal Debian installations, and these documents must compile in
+% continuous integration as well as on a workstation. The fallbacks reproduce
+% only the commands used here.
+\usepackage[a4paper, margin=25mm]{geometry}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepackage{subcaption}
+\usepackage{graphicx}
+\usepackage[hidelinks]{hyperref}
+
+\usetikzlibrary{arrows.meta, positioning}
+\pgfplotsset{compat=1.18}
+
+% A conditional is used rather than the false branch of \IfFileExists because
+% a macro parameter (#1) written inside another macro's argument is consumed
+% during expansion, producing "Illegal parameter number".
+\newif\ifhassiunitx
+\IfFileExists{siunitx.sty}{\hassiunitxtrue}{\hassiunitxfalse}
+
+\ifhassiunitx
+  \usepackage{siunitx}
+  \sisetup{detect-all, per-mode=symbol}
+\else
+  \typeout{NOTE: siunitx unavailable; using minimal fallbacks.}
+  \providecommand{\num}[1]{\ensuremath{#1}}
+  \providecommand{\si}[1]{\ensuremath{\mathrm{#1}}}
+  \providecommand{\qty}[2]{\ensuremath{#1\,\mathrm{#2}}}
+  \providecommand{\degree}{^{\circ}}
+\fi
+
+\newcommand{\code}[1]{\texttt{#1}}
+\setlength{\parskip}{0.4em}
+\setlength{\parindent}{0pt}
